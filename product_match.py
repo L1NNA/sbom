@@ -146,18 +146,18 @@ def train(training_samples):
     train_dataloader = DataLoader(training_samples, shuffle=True, batch_size=512)
     train_loss = losses.CosineSimilarityLoss(model)
     # Tune the model
-    model.fit(train_objectives=[(train_dataloader, train_loss)], epochs=1, warmup_steps=0) #evaluator=evalu, evaluation_steps=250)
+    model.fit(train_objectives=[(train_dataloader, train_loss)], epochs=1, warmup_steps=0)
     model.save("1ep-oos_model")
     print("Training done - model saved")
     return model
 
 
-def test(model, test_samples):
+def test(model, samples):
     print("<--- Beginning testing --->")
     y_pred = []; y_true = []
-    for i, example in enumerate(test_samples):
+    for i, example in enumerate(samples):
         if i % 5_000 == 0:
-            print(f"Processing sample {i} out of {len(test_samples)}")
+            print(f"Processing sample {i} out of {len(samples)}")
         emb1 = model.encode(example.texts[0])
         emb2 = model.encode(example.texts[1])
         #y = util.cos_sim(emb1, emb2)
@@ -172,6 +172,7 @@ def comp_metrics(y_pred, y_true, logfile):
     test_auc = metrics.auc(fpr, tpr)
     argmax = np.argmax(tpr - fpr)
     optimal_t = t[argmax]
+    print("Optimal Threshold = ", optimal_t)
     correct = 0
     classified = y_pred > optimal_t
     for y_p, y_t in zip(classified, y_true):
@@ -221,8 +222,8 @@ def main():
     al = [*l_debian, *l_cannon]
     all_libraries, all_examples = process_data(al)
     _, dataset = show_classes(all_libraries, all_examples)
-    #training_samples, test_samples = split_train_test(all_libraries, all_examples, 100_000) # experiment 1
-    training_samples, test_samples, products = split_out_of_sample(dataset, 100_000) # experiment 2
+    #training_samples, test_samples = split_train_test(all_libraries, all_examples, 100_000) # fully-trained
+    training_samples, test_samples, products = split_out_of_sample(dataset, 100_000) # zero-shot
     model = train(training_samples)
     y_pred, y_true = test(model, test_samples)
     classified, logger = comp_metrics(y_pred, y_true, "1ep-oos-dot.log")
